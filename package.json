@@ -1,0 +1,14 @@
+{
+  "name": "node-rjs-ssr",
+  "version": "0.0.1",
+  "description": "Seeing if we can render what we need",
+  "main": "server.js",
+  "repository": "",
+  "author": "Al Lamarre <alamarre@gmail.com>",
+  "dependencies": {
+    "express": "~3.2.4",
+    "requirejs": "*",
+    "promise": "*",
+    "react": "*"
+  }
+}
