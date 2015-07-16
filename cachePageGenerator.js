@@ -68,8 +68,6 @@ function cacheIndefinitely(url) {
 }
   
 var requireJsLoadedPromise = new Promise(function(rjsReady, rjsReject) {
-
-
   requirejs(["utilities/Guid"], function(guid) {
     require = function(dependencies, callback) {
       var filePromises = {};
@@ -168,9 +166,14 @@ var requireJsLoadedPromise = new Promise(function(rjsReady, rjsReject) {
 function getHtmlPromise(site,page) {
   return new Promise(function(fulfill,reject) {
     //get html
-    
-    var htmlUrl = "https://"+site+"/"+page+".html";
-    getProtocolFetcher(htmlUrl).get(htmlUrl, function(res) {
+    var path = "/"+page+".html";
+    getProtocolFetcher(apiProtocol+"://fake.test").get({
+        hostname:apiSite,
+        path: path,
+        headers: {
+          'X-Origin': site
+        }
+      }, function(res) {
       var body = '';
       res.on('data', function(chunk) {
         body += chunk;
@@ -186,7 +189,7 @@ function getHtmlPromise(site,page) {
 
 function pageDetailsPromise(site,page) {
   return new Promise(function(fulfill,reject) {
-    //get html
+    //get details
     var path = "/api/v1.0/pages/detailed?page="+page;
     var detailsUrl = apiProtocol+"://"+apiSite+path;
     console.log(detailsUrl);

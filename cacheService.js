@@ -58,6 +58,7 @@ function receiveNextMessage() {
                     console.log(err);
                 });
             }
+            receiveNextMessage();
         }
     });
 }
