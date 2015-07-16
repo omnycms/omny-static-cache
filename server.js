@@ -10,7 +10,7 @@ var app = express();
 var server = http.createServer(app);
 
 var requirejs = require('requirejs');
-var omnyBaseUrl = "";
+var omnyBaseUrl = "ui/public_html/";
 
 var nodeRequire = require;
 
@@ -28,7 +28,6 @@ var requireJsPaths = {
   "jquery": 'lib/jquery',
   "jqueryui": 'lib/jquery-ui/js/jquery-ui',
   "react": "lib/react/react",
-  "JSXTransformer": "lib/require-plugins/JSXTransformer",
   "ext": "https://modules.omny.ca"
 }
 
