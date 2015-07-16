@@ -7,10 +7,12 @@ var queue = process.env.AWS_QUEUE || "https://sqs.us-east-1.amazonaws.com/990455
 
 var generator = require("./cachePageGenerator");
 
-var params = {
-    "QueueUrl": queue
-};
-for(var i=0; i<1; i++) {
+
+function receiveNextMessage() {
+    var params = {
+        "QueueUrl": queue,
+        "MaxNumberOfMessages": 10
+    };
     sqs.receiveMessage(params, function(err, data) {
         if(err) {
             console.log(err);
@@ -19,19 +21,45 @@ for(var i=0; i<1; i++) {
             for(var current=0; current<data.Messages.length; current++) {
                 var message = data.Messages[current];
                 console.log(message.Body);
-                var params = {
+                var deleteMessageParams = {
                     QueueUrl: queue,
                     ReceiptHandle: message.ReceiptHandle
                 }
-                sqs.deleteMessage(params);
-                /*generator.getCachedString("about.omny.me","default").then(function(results) {
+                var parsedMessage = JSON.parse(message.Body);
+                var site = parsedMessage.site;
+                var page = parsedMessage.page;
+                var bucket = parsedMessage.output.bucket;
+                var key = parsedMessage.output.key;
+                
+                generator.getCachedString(site,page).then(function(html) {
                     console.log("success");
-                    console.log(results);
+                    console.log(html);
+                    var params = {
+                      Bucket: bucket, 
+                      Key: key, 
+                      Body: html,
+                      ContentType: "text/html"
+                    };
+                    s3.putObject(params,function(err,data) {
+                        if(err) {
+                            console.log(err);
+                        } else {
+                            console.log("deleting");
+                            console.log(deleteMessageParams);
+                            sqs.deleteMessage(deleteMessageParams, function(err,data) {
+                                if(err) {
+                                    console.log(err);
+                                }
+                            });
+                        }
+                    });
                 },function(err) {
                     console.log("test");
                     console.log(err);
-                });*/
+                });
             }
         }
     });
 }
+
+receiveNextMessage();
