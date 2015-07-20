@@ -2,11 +2,45 @@ var AWS = require('aws-sdk');
 AWS.config.region = process.env.AWS_REGION || "us-east-1";
 var s3 = new AWS.S3();
 var sqs = new AWS.SQS();
+var Promise = require('promise');
 
 var queue = process.env.AWS_QUEUE || "https://sqs.us-east-1.amazonaws.com/990455710365/static-cache";
 
 var generator = require("./cachePageGenerator");
 
+ function handleMessage(parsedMessage) {
+    return new Promise(function(fulfill,reject) {
+        console.log(parsedMessage);
+        var site = parsedMessage.site;
+        var page = parsedMessage.page;
+        var bucket = parsedMessage.output.bucket;
+        var key = parsedMessage.output.key;
+        
+        generator.getCachedString(site,page).then(function(html) {
+            console.log("success");
+            console.log(html);
+            var params = {
+              Bucket: bucket, 
+              Key: key, 
+              Body: html,
+              ContentType: "text/html"
+            };
+            s3.putObject(params,function(err,data) {
+                if(err) {
+                    console.log(err);
+                    reject(err);
+                } else {
+                   
+                    fulfill();
+                }
+            });
+            
+        },function(err) {
+            console.log(err);
+            reject(err);
+        });
+    });
+}
 
 function receiveNextMessage() {
     var params = {
@@ -26,39 +60,27 @@ function receiveNextMessage() {
                     ReceiptHandle: message.ReceiptHandle
                 }
                 var parsedMessage = JSON.parse(message.Body);
-                var site = parsedMessage.site;
-                var page = parsedMessage.page;
-                var bucket = parsedMessage.output.bucket;
-                var key = parsedMessage.output.key;
-                
-                generator.getCachedString(site,page).then(function(html) {
-                    console.log("success");
-                    console.log(html);
-                    var params = {
-                      Bucket: bucket, 
-                      Key: key, 
-                      Body: html,
-                      ContentType: "text/html"
-                    };
-                    s3.putObject(params,function(err,data) {
+                var messagePromises = [];
+                if(typeof parsedMessage.length !="undefined") {
+                    for(var i=0; i<parsedMessage.length; i++) {
+                        messagePromises.push(handleMessage(parsedMessage[i]));
+                    }
+                } else {
+                    messagePromises.push(handleMessage(parsedMessage));
+                }
+                Promise.all(messagePromises).then(function(results) {
+                    console.log("deleting");
+                    console.log(deleteMessageParams);
+                    sqs.deleteMessage(deleteMessageParams, function(err,data) {
                         if(err) {
                             console.log(err);
                         } else {
-                            console.log("deleting");
-                            console.log(deleteMessageParams);
-                            sqs.deleteMessage(deleteMessageParams, function(err,data) {
-                                if(err) {
-                                    console.log(err);
-                                }
-                            });
+                            console.log("deleted");
                         }
                     });
-                },function(err) {
-                    console.log("test");
-                    console.log(err);
+                    receiveNextMessage();
                 });
             }
-            receiveNextMessage();
         }
     });
 }
