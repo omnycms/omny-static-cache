@@ -275,11 +275,11 @@ exports.getCachedString = function(site, page) {
         var templateHtml = moduleResults[0];
         var moduleHtml = moduleResults[1];
         for(var section in templateHtml) {
-          sectionHtml[section] ="<div>"+templateHtml[section]+"</div>"
+          sectionHtml[section] = templateHtml[section]
           $("div[data-section="+section+"] div.omny-template-section").html(sectionHtml[section]);
         }
         for(var section in moduleHtml) {
-          sectionHtml[section] = "<div>"+moduleHtml[section]+"</div>"
+          sectionHtml[section] = moduleHtml[section]
           $("div[data-section="+section+"] div.omny-page-section").html(sectionHtml[section]);
         }
         fulfill($.html());
