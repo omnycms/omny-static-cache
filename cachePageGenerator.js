@@ -24,7 +24,6 @@ console.log=function() {
 }
 
 var requireJsPaths = {
-  "jquery": 'lib/jquery',
   "jqueryui": 'lib/jquery-ui/js/jquery-ui',
   "react": "lib/react/react",
   "ext": "https://modules.omny.ca"
@@ -69,7 +68,7 @@ function cacheIndefinitely(url) {
   
 var requireJsLoadedPromise = new Promise(function(rjsReady, rjsReject) {
   requirejs(["utilities/Guid"], function(guid) {
-    require = function(dependencies, callback) {
+    require = function(dependencies, callback, errFunction) {
       var filePromises = {};
       var promises = [];
       var localDependencies = [];
@@ -154,9 +153,17 @@ var requireJsLoadedPromise = new Promise(function(rjsReady, rjsReject) {
       }
       Promise.all(promises).then(function() {
         var dependencies = Array.prototype.slice.call(arguments)[0];
-        requirejs(dependencies,callback);
+        requirejs(dependencies,callback, function(err) {
+          console.log(err);
+          if(typeof errFunction!="undefined") {
+            errFunction(err);
+          }
+        });
       }, function(err) {
-        
+        console.log(err);
+        if(typeof errFunction!="undefined") {
+          errFunction(err);
+        }
       });
     }
     rjsReady();
@@ -218,44 +225,33 @@ GLOBAL.window = GLOBAL;
 function getHtmlResultsPromise(modules, editable) {
   return new Promise(function(fulfill,reject) {
     var sectionInfo = {};
-    var promiseCollection = [];
+    
     console.log(modules);
-
-      if(typeof modules!="undefined") {
-          for(var section in modules) {
-            sectionInfo[section] = [];
-            if(modules[section].length>0) {
-              for(var i=0; i<modules[section].length; i++) {
-                promiseCollection.push(new Promise(function(fulfillModule, rejectModule) {
-                  try {
-                    var module = modules[section][i].omnyClass;
-                    if(module.indexOf("Omny.")==0) {
-                      module=module.substring(5);
-                    }
-                    var data = modules[section][i].data;
-                    var loadModule = function(sectionInfo,section,module,data,fulfillModule,rejectModule) {
-                      require(["modules/"+module+"/"+module], function(mod) {
-                        var prom = (new mod(data)).renderToString();
-                        prom.then(function(result) {
-                          sectionInfo[section].push(result);
-                          fulfillModule(result);
-                        },rejectModule);
-                      });
-                    };
-                    var bound = loadModule.bind(this,sectionInfo,section,module,data,fulfillModule,rejectModule);
-                    bound();
-                  } catch(e) {
-                    rejectModule(e);
-                  }
-                }));
-              }
-            }
-          }
-      }
-      Promise.all(promiseCollection).then(function(results) {
-        fulfill(sectionInfo);
+    require(["modules/ModuleCollectionRenderer/ModuleCollectionRenderer"],function(ModuleCollectionRenderer) {
+      getCacheModulePromise().then(function() {
+        var promiseCollection = [];
+        var sectionInfo={};
+        for(var section in modules) {
+          var element = React.createElement(window.OmnyModuleCollectionRenderer,{modules:modules[section], loadImmediately: true});
+          sectionInfo[section]=(React.renderToString(element));
+        }
+        Promise.all(promiseCollection).then(function(results) {
+          console.log(sectionInfo);
+          fulfill(sectionInfo);
+        }, reject);
       }, reject);
     });
+
+  });
+}
+
+function getCacheModulePromise() {
+  return new Promise(function(fulfill,reject) {
+    require(["modules/Html/Html","modules/Menu/Menu"],function(html, menu) {
+      window.moduleCache= {"Html": html, "Menu": menu};
+      fulfill();
+    },reject);
+  });
 }
   
 exports.getCachedString = function(site, page) {
@@ -279,18 +275,11 @@ exports.getCachedString = function(site, page) {
         var templateHtml = moduleResults[0];
         var moduleHtml = moduleResults[1];
         for(var section in templateHtml) {
-          sectionHtml[section] = "";
-          for(var i=0; i<templateHtml[section].length; i++) {
-            sectionHtml[section] += "<div>"+templateHtml[section][i]+"</div>"
-          }
+          sectionHtml[section] ="<div>"+templateHtml[section]+"</div>"
           $("div[data-section="+section+"] div.omny-template-section").html(sectionHtml[section]);
         }
         for(var section in moduleHtml) {
-
-          sectionHtml[section] = "";
-          for(var i=0; i<moduleHtml[section].length; i++) {
-            sectionHtml[section] += "<div>"+moduleHtml[section][i]+"</div>"
-          }
+          sectionHtml[section] = "<div>"+moduleHtml[section]+"</div>"
           $("div[data-section="+section+"] div.omny-page-section").html(sectionHtml[section]);
         }
         fulfill($.html());

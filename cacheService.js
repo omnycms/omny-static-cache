@@ -51,6 +51,10 @@ function receiveNextMessage() {
         if(err) {
             console.log(err);
         } else {
+            if(!data.Messages) {
+                receiveNextMessage();
+                return;
+            }
             console.log(data.Messages.length);
             for(var current=0; current<data.Messages.length; current++) {
                 var message = data.Messages[current];
